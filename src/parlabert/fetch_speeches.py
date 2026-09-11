@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -33,8 +34,9 @@ TIMESTAMP_COLUMNS = ["Start", "End", "Modified"]
 
 FIELDS = NUMBER_COLUMNS + TEXT_COLUMNS + TIMESTAMP_COLUMNS + ["MeetingDate"]
 
+SCRAPED_AT_COLUMN = "scraped_at"
 
-def clean_page(page: list[dict]) -> pd.DataFrame:
+def clean_page(page: list[dict], scraped_at: pd.Timestamp) -> pd.DataFrame:
     df = pd.DataFrame(page, columns=FIELDS)
 
     for column in NUMBER_COLUMNS:
@@ -52,17 +54,23 @@ def clean_page(page: list[dict]) -> pd.DataFrame:
         errors="coerce",
     )
 
+    df[SCRAPED_AT_COLUMN] = scraped_at
+
     return df
 
 
 SPEECHES_FILE = DATA_DIR / "speeches_official.parquet"
 def fetch_speeches(destination: Path) -> int:
+    scraped_at = pd.Timestamp(datetime.now(UTC))
     writer = None
     total = 0
 
     try:
         for page in download_pages(URL, FIELDS, ODATA_FILTER):
-            table = pa.Table.from_pandas(clean_page(page), preserve_index=False)
+            table = pa.Table.from_pandas(
+                clean_page(page, scraped_at),
+                preserve_index=False,
+            )
 
             if writer is None:
                 writer = pq.ParquetWriter(destination, table.schema)

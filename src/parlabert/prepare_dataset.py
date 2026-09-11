@@ -1,4 +1,5 @@
 import html
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -7,8 +8,22 @@ SPEECHES_FILE = "data/raw/speeches_official.parquet"
 HISTORY_FILE = "data/raw/member_party_history.parquet"
 RAPPORTEURS_FILE = "data/raw/rapporteurs.parquet"
 SUBJECT_BUSINESS_FILE = "data/raw/subject_business.parquet"
-OUTPUT_FILE = "data/processed/parlabert.parquet"
 OUTPUT_DIR = Path("data/processed")
+PARQUET_FILE = OUTPUT_DIR / "parlabert.parquet"
+CSV_FILE = OUTPUT_DIR / "parlabert.csv"
+
+OUTPUT_COLUMNS = {
+    "ID": "speech_id",
+    "IdSubject": "debate_id",
+    "PersonNumber": "person_number",
+    "SpeakerFullName": "speaker",
+    "MeetingDate": "date",
+    "LanguageOfText": "language",
+    "text": "text",
+    "party_canonical": "party",
+    "party_source": "party_source",
+    "scraped_at": "scraped_at",
+}
 
 
 TRAINING_PARTIES = [
@@ -203,6 +218,28 @@ def drop_duplicate_speeches(speeches: pd.DataFrame) -> pd.DataFrame:
     return speeches[~is_duplicate]
 
 
+def add_scraped_at(speeches: pd.DataFrame) -> pd.DataFrame:
+
+    if "scraped_at" in speeches.columns:
+        return speeches
+
+    scraped_at = pd.Timestamp(
+        datetime.fromtimestamp(Path(SPEECHES_FILE).stat().st_mtime, UTC)
+    )
+
+    print(f"No 'scraped_at' in the raw file - using its file time {scraped_at:%Y-%m-%d %H:%M}")
+
+    return speeches.assign(scraped_at=scraped_at)
+
+
+def select_output_columns(speeches: pd.DataFrame) -> pd.DataFrame:
+    dropped = len(speeches.columns) - len(OUTPUT_COLUMNS)
+
+    print(f"Dropping {dropped} columns that training does not need")
+
+    return speeches[list(OUTPUT_COLUMNS)].rename(columns=OUTPUT_COLUMNS)
+
+
 def main() -> None:
     speeches = pd.read_parquet(SPEECHES_FILE)
     party_history = pd.read_parquet(HISTORY_FILE)
@@ -212,6 +249,7 @@ def main() -> None:
     print(f"Loaded {len(speeches):,} speeches")
 
     speeches["text"] = clean_text(speeches["Text"])
+    speeches = add_scraped_at(speeches)
 
     speeches = drop_government_speeches(speeches)
     speeches = drop_presiding_speeches(speeches)
@@ -220,10 +258,15 @@ def main() -> None:
     speeches = add_party_at_speech(speeches, party_history)
     speeches = keep_training_parties(speeches)
     speeches = drop_duplicate_speeches(speeches)
+    speeches = select_output_columns(speeches)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    speeches.to_parquet(OUTPUT_FILE, index=False)
-    print(f"Finished: {len(speeches):,} rows -> {OUTPUT_FILE}")
+    speeches.to_parquet(PARQUET_FILE, index=False)
+    speeches.to_csv(CSV_FILE, index=False)
+
+    print(f"Finished: {len(speeches):,} rows x {len(speeches.columns)} columns")
+    print(f"  {PARQUET_FILE}")
+    print(f"  {CSV_FILE}")
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -33,10 +34,11 @@ def download_changes(cutoff: pd.Timestamp) -> pd.DataFrame:
         f"{ODATA_FILTER} and Modified gt datetime'{cutoff:%Y-%m-%dT%H:%M:%S}'"
     )
 
+    scraped_at = pd.Timestamp(datetime.now(UTC))
     pages = []
 
     for page in download_pages(URL, FIELDS, odata_filter):
-        pages.append(clean_page(page))
+        pages.append(clean_page(page, scraped_at))
         print(f"Rows: {sum(len(p) for p in pages):,}")
 
     if not pages:
