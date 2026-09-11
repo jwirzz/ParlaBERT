@@ -1,10 +1,13 @@
+from pathlib import Path
+
 import pandas as pd
 
 SPEECHES_FILE = "data/raw/speeches_official.parquet"
 HISTORY_FILE = "data/raw/member_party_history.parquet"
 RAPPORTEURS_FILE = "data/raw/rapporteurs.parquet"
 SUBJECT_BUSINESS_FILE = "data/raw/subject_business.parquet"
-OUTPUT_FILE = "data/processed/merged.csv"
+OUTPUT_FILE = "data/processed/parlabert.parquet"
+OUTPUT_DIR = Path("data/processed")
 
 
 TRAINING_PARTIES = [
@@ -215,7 +218,8 @@ def main() -> None:
     speeches = keep_training_parties(speeches)
     speeches = drop_duplicate_speeches(speeches)
 
-    speeches.to_csv(OUTPUT_FILE, index=False)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    speeches.to_parquet(OUTPUT_FILE, index=False)
     print(f"Finished: {len(speeches):,} rows -> {OUTPUT_FILE}")
 
 
