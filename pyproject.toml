@@ -1,0 +1,17 @@
+[project]
+name = "parlabert"
+version = "0.1.0"
+description = "ParlaBERT classifies political statements by assigning them to a Swiss political party"
+readme = "README.md"
+authors = [
+    { name = "Jonathan", email = "github.departure288@passmail.net" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+parlabert = "parlabert:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
