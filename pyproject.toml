@@ -7,7 +7,12 @@ authors = [
     { name = "Jonathan", email = "github.departure288@passmail.net" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pandas>=3.0.5",
+    "pyarrow>=25.0.1",
+    "pyreadr>=0.5.6",
+    "requests>=2.34.2",
+]
 
 [project.scripts]
 parlabert = "parlabert:main"
@@ -15,3 +20,15 @@ parlabert = "parlabert:main"
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.48.0",
+    "ruff>=0.16.7",
+]
+
+[tool.poe.tasks]
+lint = "ruff check ."
+format = "ruff format ."
+fix = "ruff check . --fix"
+all = ["fix", "format"]
