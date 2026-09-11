@@ -11,4 +11,7 @@ wheels/
 
 # Project-specific files
 .idea/
-data/
+data/processed/*
+!data/processed/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
