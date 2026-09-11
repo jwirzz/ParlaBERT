@@ -1,3 +1,4 @@
+import html
 from pathlib import Path
 
 import pandas as pd
@@ -44,6 +45,8 @@ def clean_text(raw_text: pd.Series) -> pd.Series:
         raw_text.fillna("")
         # removes anything that looks like an HTML/XML tag
         .str.replace(r"<[^>]+>", " ", regex=True)
+        # turns HTML entities back into plain characters ("&amp;" -> "&")
+        .map(html.unescape)
         # removes bracketed transcript markers
         .str.replace(r"\[(VS|GZ|NB|NAM|PAGE[^\]]*)\]", " ", regex=True)
         .str.replace(r"\s+", " ", regex=True)

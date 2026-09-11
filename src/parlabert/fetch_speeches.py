@@ -29,7 +29,7 @@ TEXT_COLUMNS = [
     "CantonAbbreviation",
 ]
 
-TIMESTAMP_COLUMNS = ["Start", "End"]
+TIMESTAMP_COLUMNS = ["Start", "End", "Modified"]
 
 FIELDS = NUMBER_COLUMNS + TEXT_COLUMNS + TIMESTAMP_COLUMNS + ["MeetingDate"]
 
@@ -55,6 +55,7 @@ def clean_page(page: list[dict]) -> pd.DataFrame:
     return df
 
 
+SPEECHES_FILE = DATA_DIR / "speeches_official.parquet"
 def fetch_speeches(destination: Path) -> int:
     writer = None
     total = 0
@@ -80,7 +81,7 @@ def fetch_speeches(destination: Path) -> int:
 def main() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    destination = DATA_DIR / "speeches_official.parquet"
+    destination = SPEECHES_FILE
 
     print("Downloading transcripts from ws.parlament.ch ...")
     total = fetch_speeches(destination)
