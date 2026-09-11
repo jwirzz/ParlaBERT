@@ -36,6 +36,7 @@ FIELDS = NUMBER_COLUMNS + TEXT_COLUMNS + TIMESTAMP_COLUMNS + ["MeetingDate"]
 
 SCRAPED_AT_COLUMN = "scraped_at"
 
+
 def clean_page(page: list[dict], scraped_at: pd.Timestamp) -> pd.DataFrame:
     df = pd.DataFrame(page, columns=FIELDS)
 
@@ -60,6 +61,8 @@ def clean_page(page: list[dict], scraped_at: pd.Timestamp) -> pd.DataFrame:
 
 
 SPEECHES_FILE = DATA_DIR / "speeches_official.parquet"
+
+
 def fetch_speeches(destination: Path) -> int:
     scraped_at = pd.Timestamp(datetime.now(UTC))
     writer = None

@@ -227,7 +227,9 @@ def add_scraped_at(speeches: pd.DataFrame) -> pd.DataFrame:
         datetime.fromtimestamp(Path(SPEECHES_FILE).stat().st_mtime, UTC)
     )
 
-    print(f"No 'scraped_at' in the raw file - using its file time {scraped_at:%Y-%m-%d %H:%M}")
+    print(
+        f"No 'scraped_at' in the raw file - using its file time {scraped_at:%Y-%m-%d %H:%M}"
+    )
 
     return speeches.assign(scraped_at=scraped_at)
 
