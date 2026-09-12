@@ -1,6 +1,11 @@
 import pandas as pd
 
-from parlabert.parlament_api import DATA_DIR, download_pages
+from parlabert.dataset.parlament_api import (
+    DATA_DIR,
+    SCRAPED_AT_COLUMN,
+    download_pages,
+    scraped_now,
+)
 
 RAPPORTEUR_URL = "https://ws.parlament.ch/odata.svc/Rapporteur"
 SUBJECT_BUSINESS_URL = "https://ws.parlament.ch/odata.svc/SubjectBusiness"
@@ -30,6 +35,8 @@ def download_table(url: str, fields: list[str], label: str) -> pd.DataFrame:
                 table[column],
                 errors="coerce",
             ).astype("Int64")
+
+    table[SCRAPED_AT_COLUMN] = scraped_now()
 
     return table
 

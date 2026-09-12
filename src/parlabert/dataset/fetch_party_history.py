@@ -1,9 +1,11 @@
 import pandas as pd
 
-from parlabert.parlament_api import (
+from parlabert.dataset.parlament_api import (
     DATA_DIR,
+    SCRAPED_AT_COLUMN,
     download_pages,
     parse_odata_date,
+    scraped_now,
 )
 
 URL = "https://ws.parlament.ch/odata.svc/MemberPartyHistory"
@@ -52,6 +54,8 @@ def fetch_party_history() -> pd.DataFrame:
     history["date_joining"] = history["date_joining"].map(parse_odata_date)
 
     history["date_leaving"] = history["date_leaving"].map(parse_odata_date)
+
+    history[SCRAPED_AT_COLUMN] = scraped_now()
 
     return history
 

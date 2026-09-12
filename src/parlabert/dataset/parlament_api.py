@@ -1,11 +1,19 @@
 import re
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
 import requests
 
 DATA_DIR = Path("data/raw")
+
+SCRAPED_AT_COLUMN = "scraped_at"
+
+
+def scraped_now() -> pd.Timestamp:
+    return pd.Timestamp(datetime.now(UTC))
+
 
 HEADERS = {
     "User-Agent": (

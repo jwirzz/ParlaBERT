@@ -1,0 +1,101 @@
+name: Update dataset
+
+on:
+  schedule:
+    - cron: "0 17 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: update-dataset
+  cancel-in-progress: false
+
+env:
+  RAW_RELEASE: raw-data
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Pull the raw data of the last run
+        run: |
+          mkdir -p data/raw
+
+          gh release download "$RAW_RELEASE" \
+            --pattern "*.parquet" --dir data/raw --clobber \
+            || echo "No '$RAW_RELEASE' release yet - starting from scratch."
+
+          ls -lh data/raw
+
+      - name: Update the raw data
+        run: uv run python -m parlabert.dataset.update_raw
+
+      - name: Store the raw data for the next run
+        if: env.changed == 'true'
+        run: |
+          gh release view "$RAW_RELEASE" >/dev/null 2>&1 || gh release create "$RAW_RELEASE" \
+            --title "Raw data" \
+            --notes "Latest raw files from ws.parlament.ch, replaced by the weekly update." \
+            --latest=false
+
+          gh release upload "$RAW_RELEASE" data/raw/*.parquet --clobber
+
+      - name: Build the dataset
+        if: env.changed == 'true'
+        run: uv run python -m parlabert.dataset.prepare_dataset
+
+      - name: Pick the version of this week
+        if: env.changed == 'true'
+        run: |
+          base="v$(date -u +%Y.%m.%d)"
+          version="$base"
+          attempt=1
+
+          while gh release view "$version" >/dev/null 2>&1; do
+            attempt=$((attempt + 1))
+            version="$base-$attempt"
+          done
+
+          echo "DATASET_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Publishing as $version"
+
+      - name: Publish the dataset as a GitHub release
+        if: env.changed == 'true'
+        run: |
+          rows=$(uv run python - <<'PY'
+          import pyarrow.parquet as pq
+
+          print(f"{pq.ParquetFile('data/processed/parlabert.parquet').metadata.num_rows:,}")
+          PY
+          )
+
+          notes="$rows cleaned speeches of the Swiss Federal Parliament, also published as $DATASET_VERSION on https://huggingface.co/datasets/${HF_DATASET_REPO:-jwirzz/parlabert}"
+
+          gh release create "$DATASET_VERSION" \
+            data/processed/parlabert.parquet \
+            --title "Dataset $DATASET_VERSION" \
+            --notes "$notes"
+
+          echo "Released $DATASET_VERSION with $rows rows" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the same version on Hugging Face
+        if: env.changed == 'true'
+        run: uv run python -m parlabert.dataset.publish_dataset
+
+      - name: Report that nothing changed
+        if: env.changed != 'true'
+        run: echo "No new or corrected speeches - nothing published." >> "$GITHUB_STEP_SUMMARY"

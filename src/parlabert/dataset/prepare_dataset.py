@@ -4,13 +4,14 @@ from pathlib import Path
 
 import pandas as pd
 
+from parlabert.dataset.parlament_api import SCRAPED_AT_COLUMN
+
 SPEECHES_FILE = "data/raw/speeches_official.parquet"
 HISTORY_FILE = "data/raw/member_party_history.parquet"
 RAPPORTEURS_FILE = "data/raw/rapporteurs.parquet"
 SUBJECT_BUSINESS_FILE = "data/raw/subject_business.parquet"
 OUTPUT_DIR = Path("data/processed")
 PARQUET_FILE = OUTPUT_DIR / "parlabert.parquet"
-CSV_FILE = OUTPUT_DIR / "parlabert.csv"
 
 OUTPUT_COLUMNS = {
     "ID": "speech_id",
@@ -227,19 +228,26 @@ def drop_duplicate_speeches(speeches: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_scraped_at(speeches: pd.DataFrame) -> pd.DataFrame:
+    known = speeches.get(SCRAPED_AT_COLUMN)
 
-    if "scraped_at" in speeches.columns:
+    if known is not None and known.notna().all():
         return speeches
 
     scraped_at = pd.Timestamp(
         datetime.fromtimestamp(Path(SPEECHES_FILE).stat().st_mtime, UTC)
     )
 
+    missing = len(speeches) if known is None else known.isna().sum()
+
     print(
-        f"No 'scraped_at' in the raw file - using its file time {scraped_at:%Y-%m-%d %H:%M}"
+        f"No 'scraped_at' for {missing:,} speeches - "
+        f"using the file time {scraped_at:%Y-%m-%d %H:%M}"
     )
 
-    return speeches.assign(scraped_at=scraped_at)
+    if known is None:
+        return speeches.assign(**{SCRAPED_AT_COLUMN: scraped_at})
+
+    return speeches.assign(**{SCRAPED_AT_COLUMN: known.fillna(scraped_at)})
 
 
 def select_output_columns(speeches: pd.DataFrame) -> pd.DataFrame:
@@ -273,11 +281,9 @@ def main() -> None:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     speeches.to_parquet(PARQUET_FILE, index=False)
-    speeches.to_csv(CSV_FILE, index=False)
 
     print(f"Finished: {len(speeches):,} rows x {len(speeches.columns)} columns")
     print(f"  {PARQUET_FILE}")
-    print(f"  {CSV_FILE}")
 
 
 if __name__ == "__main__":

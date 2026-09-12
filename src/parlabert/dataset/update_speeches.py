@@ -1,16 +1,15 @@
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
 
-from parlabert.fetch_speeches import (
+from parlabert.dataset.fetch_speeches import (
     FIELDS,
     ODATA_FILTER,
     SPEECHES_FILE,
     URL,
     clean_page,
 )
-from parlabert.parlament_api import download_pages
+from parlabert.dataset.parlament_api import download_pages, scraped_now
 
 FALLBACK_MARGIN = pd.Timedelta(days=1)
 
@@ -34,7 +33,7 @@ def download_changes(cutoff: pd.Timestamp) -> pd.DataFrame:
         f"{ODATA_FILTER} and Modified gt datetime'{cutoff:%Y-%m-%dT%H:%M:%S}'"
     )
 
-    scraped_at = pd.Timestamp(datetime.now(UTC))
+    scraped_at = scraped_now()
     pages = []
 
     for page in download_pages(URL, FIELDS, odata_filter):
@@ -60,14 +59,10 @@ def merge_changes(
     return pd.concat([kept, changes], ignore_index=True).sort_values("ID")
 
 
-def main() -> None:
-    if not SPEECHES_FILE.exists():
-        raise SystemExit(
-            f"{SPEECHES_FILE} not found - run fetch_speeches once to start."
-        )
+def update(path: Path = SPEECHES_FILE) -> bool:
 
-    speeches = pd.read_parquet(SPEECHES_FILE)
-    cutoff = find_cutoff(speeches, SPEECHES_FILE)
+    speeches = pd.read_parquet(path)
+    cutoff = find_cutoff(speeches, path)
 
     print(f"Loaded {len(speeches):,} speeches, changed since {cutoff:%Y-%m-%d %H:%M}")
 
@@ -75,12 +70,23 @@ def main() -> None:
 
     if changes.empty:
         print("Already up to date.")
-        return
+        return False
 
     speeches = merge_changes(speeches, changes)
-    speeches.to_parquet(SPEECHES_FILE, index=False)
+    speeches.to_parquet(path, index=False)
 
-    print(f"Finished: {len(speeches):,} rows -> {SPEECHES_FILE}")
+    print(f"Finished: {len(speeches):,} rows -> {path}")
+
+    return True
+
+
+def main() -> None:
+    if not SPEECHES_FILE.exists():
+        raise SystemExit(
+            f"{SPEECHES_FILE} not found - run fetch_speeches once to start."
+        )
+
+    update()
 
 
 if __name__ == "__main__":

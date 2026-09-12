@@ -1,11 +1,16 @@
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from parlabert.parlament_api import DATA_DIR, download_pages, parse_odata_date
+from parlabert.dataset.parlament_api import (
+    DATA_DIR,
+    SCRAPED_AT_COLUMN,
+    download_pages,
+    parse_odata_date,
+    scraped_now,
+)
 
 URL = "https://ws.parlament.ch/odata.svc/Transcript"
 
@@ -33,8 +38,6 @@ TEXT_COLUMNS = [
 TIMESTAMP_COLUMNS = ["Start", "End", "Modified"]
 
 FIELDS = NUMBER_COLUMNS + TEXT_COLUMNS + TIMESTAMP_COLUMNS + ["MeetingDate"]
-
-SCRAPED_AT_COLUMN = "scraped_at"
 
 
 def clean_page(page: list[dict], scraped_at: pd.Timestamp) -> pd.DataFrame:
@@ -64,7 +67,7 @@ SPEECHES_FILE = DATA_DIR / "speeches_official.parquet"
 
 
 def fetch_speeches(destination: Path) -> int:
-    scraped_at = pd.Timestamp(datetime.now(UTC))
+    scraped_at = scraped_now()
     writer = None
     total = 0
 
