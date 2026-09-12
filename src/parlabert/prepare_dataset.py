@@ -124,6 +124,14 @@ def drop_short_speeches(speeches: pd.DataFrame) -> pd.DataFrame:
     return speeches[~is_too_short]
 
 
+def drop_speeches_with_missing_language(speeches: pd.DataFrame) -> pd.DataFrame:
+    is_missing_language = speeches["LanguageOfText"].isna()
+
+    print(f"Dropping {is_missing_language.sum():,} speeches with missing language")
+
+    return speeches[~is_missing_language]
+
+
 def group_periods_by_person(history: pd.DataFrame) -> dict[int, list]:
     history = history.copy()
     history["date_leaving"] = history["date_leaving"].fillna(FAR_FUTURE)
@@ -259,6 +267,7 @@ def main() -> None:
     speeches = drop_short_speeches(speeches)
     speeches = add_party_at_speech(speeches, party_history)
     speeches = keep_training_parties(speeches)
+    speeches = drop_speeches_with_missing_language(speeches)
     speeches = drop_duplicate_speeches(speeches)
     speeches = select_output_columns(speeches)
 
