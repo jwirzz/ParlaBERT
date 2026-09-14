@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 17 * * 0"
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Publish even when the raw data did not change"
+        type: boolean
+        default: false
 
 concurrency:
   group: update-dataset
@@ -42,7 +47,14 @@ jobs:
           ls -lh data/raw
 
       - name: Update the raw data
-        run: uv run python -m parlabert.dataset.update_raw
+        run: |
+          uv run python -m parlabert.dataset.update_raw
+
+          # A later line in GITHUB_ENV wins, so this overrides changed=false.
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "changed=true" >> "$GITHUB_ENV"
+            echo "Forced - publishing even though nothing changed."
+          fi
 
       - name: Store the raw data for the next run
         if: env.changed == 'true'

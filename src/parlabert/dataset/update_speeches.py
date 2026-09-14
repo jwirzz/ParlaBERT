@@ -9,7 +9,11 @@ from parlabert.dataset.fetch_speeches import (
     URL,
     clean_page,
 )
-from parlabert.dataset.parlament_api import download_pages, scraped_now
+from parlabert.dataset.parlament_api import (
+    SCRAPED_AT_COLUMN,
+    download_pages,
+    scraped_now,
+)
 
 FALLBACK_MARGIN = pd.Timedelta(days=1)
 
@@ -46,6 +50,21 @@ def download_changes(cutoff: pd.Timestamp) -> pd.DataFrame:
     return pd.concat(pages, ignore_index=True)
 
 
+def drop_unchanged(
+    speeches: pd.DataFrame,
+    changes: pd.DataFrame,
+) -> pd.DataFrame:
+    if changes.empty:
+        return changes
+
+    columns = [column for column in changes.columns if column != SCRAPED_AT_COLUMN]
+    known = speeches[speeches["ID"].isin(changes["ID"])][columns]
+
+    same = changes[columns].merge(known, how="left", indicator=True)["_merge"]
+
+    return changes[(same == "left_only").to_numpy()]
+
+
 def merge_changes(
     speeches: pd.DataFrame,
     changes: pd.DataFrame,
@@ -66,7 +85,7 @@ def update(path: Path = SPEECHES_FILE) -> bool:
 
     print(f"Loaded {len(speeches):,} speeches, changed since {cutoff:%Y-%m-%d %H:%M}")
 
-    changes = download_changes(cutoff)
+    changes = drop_unchanged(speeches, download_changes(cutoff))
 
     if changes.empty:
         print("Already up to date.")
