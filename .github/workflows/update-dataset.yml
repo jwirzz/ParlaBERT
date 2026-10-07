@@ -88,10 +88,26 @@ jobs:
       - name: Publish the dataset as a GitHub release
         if: env.changed == 'true'
         run: |
-          rows=$(uv run python - <<'PY'
-          import pyarrow.parquet as pq
+          # Without a tag this pulls the "Latest" release, i.e. the previous dataset version.
+          gh release download --pattern parlabert.parquet --dir "$RUNNER_TEMP/previous" \
+            || echo "No previous dataset release - nothing to compare against."
 
-          print(f"{pq.ParquetFile('data/processed/parlabert.parquet').metadata.num_rows:,}")
+          rows=$(uv run python - <<'PY'
+          import os
+          from pathlib import Path
+
+          import pandas as pd
+
+          ids = pd.read_parquet("data/processed/parlabert.parquet", columns=["speech_id"])["speech_id"]
+          rows = f"{len(ids):,}"
+
+          previous = Path(os.environ["RUNNER_TEMP"], "previous", "parlabert.parquet")
+
+          if previous.exists():
+              known = pd.read_parquet(previous, columns=["speech_id"])["speech_id"]
+              rows += f" ({(~ids.isin(known)).sum():,} new since the last version)"
+
+          print(rows)
           PY
           )
 
