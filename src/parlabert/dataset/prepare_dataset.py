@@ -40,11 +40,16 @@ TRAINING_PARTIES = [
 CANONICAL_PARTY = {
     "FDP": "FDP-Liberale",
     "LPS": "FDP-Liberale",
+    "LDP": "FDP-Liberale",
     "CVP": "Die Mitte",
     "BDP": "Die Mitte",
     "CVPO": "Die Mitte",
+    "CSPO": "Die Mitte",
+    "M-E": "Die Mitte",
     "GPS": "GRÜNE",
     "GB": "GRÜNE",
+    "Al": "GRÜNE",
+    "BastA": "GRÜNE",
     "GLiZ": "glp",
     "MCR": "MCG",
 }
@@ -52,6 +57,12 @@ CANONICAL_PARTY = {
 GOVERNMENT_COUNCIL_IDS = [98, 99]
 GOVERNMENT_FUNCTIONS = r"^(BR|BPR|VPBR|BK)-"
 PRESIDING_FUNCTIONS = r"^(P|1VP|2VP|AP)-"
+# stage directions such as "(Heiterkeit)" or "(Zwischenruf des Präsidenten: Frage!)"
+STAGE_DIRECTIONS = (
+    r" ?\((?:Teilweiser? |Stehender? )?(?:Heiterkeit|Unruhe|Beifall|Ovation|Glocke"
+    r"|Zwischenruf|Der Redner|Die Rednerin|Hilarité|Applaudissements|Brouhaha"
+    r"|Remarque intermédiaire|Interruzione|Ilarità|Applaus|discurra)[^()]*\)"
+)
 MIN_WORDS = 50
 FAR_FUTURE = pd.Timestamp("2099-12-31")
 
@@ -66,6 +77,9 @@ def clean_text(raw_text: pd.Series) -> pd.Series:
         # removes bracketed transcript markers
         .str.replace(r"\[(VS|GZ|NB|NAM|PAGE[^\]]*)\]", " ", regex=True)
         .str.replace(r"\s+", " ", regex=True)
+        # removes stage directions, after collapsing spaces since page markers
+        # can sit inside them: "(Teilweise [PAGE 1064] Heiterkeit)"
+        .str.replace(STAGE_DIRECTIONS, "", regex=True)
         .str.strip()
     )
 
@@ -133,6 +147,25 @@ def drop_speeches_with_missing_language(speeches: pd.DataFrame) -> pd.DataFrame:
     return speeches[~is_missing_language]
 
 
+def fill_missing_abbreviations(history: pd.DataFrame) -> pd.DataFrame:
+    # some periods only carry the party number, not its abbreviation or name
+    known = history.dropna(subset=["party_abbreviation"]).drop_duplicates(
+        "party_number", keep="last"
+    )
+    abbreviation_by_number = known.set_index("party_number")["party_abbreviation"]
+    name_by_number = known.set_index("party_number")["party_name"]
+
+    history = history.copy()
+    history["party_abbreviation"] = history["party_abbreviation"].fillna(
+        history["party_number"].map(abbreviation_by_number)
+    )
+    history["party_name"] = history["party_name"].fillna(
+        history["party_number"].map(name_by_number)
+    )
+
+    return history
+
+
 def group_periods_by_person(history: pd.DataFrame) -> dict[int, list]:
     history = history.copy()
     history["date_leaving"] = history["date_leaving"].fillna(FAR_FUTURE)
@@ -173,7 +206,7 @@ def add_party_at_speech(
     speeches: pd.DataFrame,
     history: pd.DataFrame,
 ) -> pd.DataFrame:
-    periods_by_person = group_periods_by_person(history)
+    periods_by_person = group_periods_by_person(fill_missing_abbreviations(history))
 
     abbreviations = []
     names = []
