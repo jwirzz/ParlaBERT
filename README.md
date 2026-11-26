@@ -3,6 +3,8 @@
 ParlaBERT is an NLP project that fine-tunes BERT on Swiss political speech to
 predict the political party associated with a given statement.
 
+### Note: This project is currently under development. Only the dataset is available at this time. The model will be released in the future.
+
 ### Dataset
 
 This dataset contains cleaned speeches from the Swiss Federal Parliament from 
